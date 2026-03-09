@@ -4,20 +4,20 @@ use jupiter_amm_interface::{
     try_get_account_data, AccountMap, Amm, AmmContext, KeyedAccount, Quote, QuoteParams, Swap,
     SwapAndAccountMetas, SwapParams,
 };
-use solana_sdk::{
-    instruction::AccountMeta, program_pack::Pack, pubkey::Pubkey,
-    system_program::ID as SystemProgramId,
-};
-use spl_token_2022::{extension::StateWithExtensionsOwned, state::Mint as Mint22};
+use solana_instruction::AccountMeta;
+use solana_program_pack::Pack;
+use solana_pubkey::Pubkey;
+use solana_system_interface::program::ID as SystemProgramId;
+use spl_token_2022_interface::{extension::StateWithExtensionsOwned, state::Mint as Mint22};
 
 pub mod constants;
 use constants::*;
 
 mod errors;
-mod math;
+pub mod math;
 use errors::VoltrAmmError;
-use math::*;
-use state::Vault;
+pub use math::*;
+pub use state::Vault;
 
 pub mod state;
 
@@ -274,7 +274,7 @@ impl Amm for VoltrAmm {
         self.vault_state = Vault::load(vault_data)?;
 
         let lp_mint_data = try_get_account_data(account_map, &self.vault_state.lp.mint)?;
-        let lp_mint = spl_token::state::Mint::unpack(lp_mint_data)?;
+        let lp_mint = spl_token_interface::state::Mint::unpack(lp_mint_data)?;
         self.lp_mint_supply = lp_mint.supply;
         self.lp_mint_decimals = lp_mint.decimals;
 
@@ -286,7 +286,7 @@ impl Amm for VoltrAmm {
         self.asset_token_program = asset_account.owner;
 
         if asset_account.owner == TOKEN_PROGRAM {
-            let mint = spl_token::state::Mint::unpack(&asset_account.data)?;
+            let mint = spl_token_interface::state::Mint::unpack(&asset_account.data)?;
             self.asset_mint_decimals = mint.decimals;
         } else {
             let mint = StateWithExtensionsOwned::<Mint22>::unpack(asset_account.data.to_vec())?;
@@ -295,12 +295,13 @@ impl Amm for VoltrAmm {
 
         let idle_ata_data = try_get_account_data(account_map, &self.vault_state.asset.idle_ata)?;
         if self.asset_token_program == TOKEN_PROGRAM {
-            let idle_account = spl_token::state::Account::unpack(idle_ata_data)?;
+            let idle_account = spl_token_interface::state::Account::unpack(idle_ata_data)?;
             self.asset_idle_balance = idle_account.amount;
         } else {
-            let idle_account = StateWithExtensionsOwned::<spl_token_2022::state::Account>::unpack(
-                idle_ata_data.to_vec(),
-            )?;
+            let idle_account =
+                StateWithExtensionsOwned::<spl_token_2022_interface::state::Account>::unpack(
+                    idle_ata_data.to_vec(),
+                )?;
             self.asset_idle_balance = idle_account.base.amount;
         }
 

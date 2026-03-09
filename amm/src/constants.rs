@@ -1,5 +1,5 @@
-use solana_sdk::pubkey;
-use solana_sdk::pubkey::Pubkey;
+use solana_pubkey::pubkey;
+use solana_pubkey::Pubkey;
 
 pub const VOLTR_VAULT_PROGRAM: Pubkey = pubkey!("vVoLTRjQmtFpiYoegx285Ze4gsLJ8ZxgFKVcuvmG1a8");
 
