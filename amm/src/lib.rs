@@ -435,4 +435,8 @@ impl Amm for VoltrAmm {
     fn supports_exact_out(&self) -> bool {
         false
     }
+
+    fn get_accounts_len(&self) -> usize {
+        13
+    }
 }
