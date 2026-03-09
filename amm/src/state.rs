@@ -5,6 +5,40 @@ use crate::errors::VoltrAmmError;
 
 const DISCRIMINATOR_SIZE: usize = 8;
 
+fn read_slice(data: &[u8], start: usize, end: usize) -> Result<&[u8]> {
+    data.get(start..end)
+        .ok_or(VoltrAmmError::InvalidAccountData.into())
+}
+
+fn read_array<const N: usize>(data: &[u8], offset: usize) -> Result<[u8; N]> {
+    let end = offset.checked_add(N).ok_or(VoltrAmmError::MathOverflow)?;
+    read_slice(data, offset, end)?
+        .try_into()
+        .map_err(Into::into)
+}
+
+fn read_pubkey(data: &[u8], offset: usize) -> Result<Pubkey> {
+    Ok(Pubkey::new_from_array(read_array::<32>(data, offset)?))
+}
+
+fn read_u8(data: &[u8], offset: usize) -> Result<u8> {
+    data.get(offset)
+        .copied()
+        .ok_or(VoltrAmmError::InvalidAccountData.into())
+}
+
+fn read_u16(data: &[u8], offset: usize) -> Result<u16> {
+    Ok(u16::from_le_bytes(read_array::<2>(data, offset)?))
+}
+
+fn read_u64(data: &[u8], offset: usize) -> Result<u64> {
+    Ok(u64::from_le_bytes(read_array::<8>(data, offset)?))
+}
+
+fn read_u128(data: &[u8], offset: usize) -> Result<u128> {
+    Ok(u128::from_le_bytes(read_array::<16>(data, offset)?))
+}
+
 #[derive(Clone, Debug)]
 pub struct Vault {
     pub asset: VaultAsset,
@@ -23,22 +57,19 @@ impl Vault {
     pub fn load(account_data: &[u8]) -> Result<Self> {
         let d = DISCRIMINATOR_SIZE;
 
-        let asset = VaultAsset::load(&account_data[d + 96..d + 264])?;
-        let lp = VaultLp::load(&account_data[d + 264..d + 360])?;
+        let asset = VaultAsset::load(read_slice(account_data, d + 96, d + 264)?)?;
+        let lp = VaultLp::load(read_slice(account_data, d + 264, d + 360)?)?;
         let vault_configuration =
-            VaultConfiguration::load(&account_data[d + 424..d + 504])?;
+            VaultConfiguration::load(read_slice(account_data, d + 424, d + 504)?)?;
         let fee_configuration =
-            FeeConfiguration::load(&account_data[d + 504..d + 552])?;
-        let fee_update = FeeUpdate::load(&account_data[d + 552..d + 568])?;
-        let fee_state = FeeState::load(&account_data[d + 568..d + 608])?;
-        let dead_weight =
-            u64::from_le_bytes(account_data[d + 608..d + 616].try_into()?);
-        let high_water_mark =
-            HighWaterMark::load(&account_data[d + 616..d + 648])?;
-        let last_updated_ts =
-            u64::from_le_bytes(account_data[d + 648..d + 656].try_into()?);
+            FeeConfiguration::load(read_slice(account_data, d + 504, d + 552)?)?;
+        let fee_update = FeeUpdate::load(read_slice(account_data, d + 552, d + 568)?)?;
+        let fee_state = FeeState::load(read_slice(account_data, d + 568, d + 608)?)?;
+        let dead_weight = read_u64(account_data, d + 608)?;
+        let high_water_mark = HighWaterMark::load(read_slice(account_data, d + 616, d + 648)?)?;
+        let last_updated_ts = read_u64(account_data, d + 648)?;
         let locked_profit_state =
-            LockedProfitState::load(&account_data[d + 664..d + 680])?;
+            LockedProfitState::load(read_slice(account_data, d + 664, d + 680)?)?;
 
         Ok(Vault {
             asset,
@@ -112,10 +143,10 @@ pub struct VaultAsset {
 impl VaultAsset {
     pub fn load(data: &[u8]) -> Result<Self> {
         Ok(VaultAsset {
-            mint: Pubkey::new_from_array(data[0..32].try_into()?),
-            idle_ata: Pubkey::new_from_array(data[32..64].try_into()?),
-            total_value: u64::from_le_bytes(data[64..72].try_into()?),
-            idle_ata_auth_bump: data[72],
+            mint: read_pubkey(data, 0)?,
+            idle_ata: read_pubkey(data, 32)?,
+            total_value: read_u64(data, 64)?,
+            idle_ata_auth_bump: read_u8(data, 72)?,
         })
     }
 }
@@ -130,9 +161,9 @@ pub struct VaultLp {
 impl VaultLp {
     pub fn load(data: &[u8]) -> Result<Self> {
         Ok(VaultLp {
-            mint: Pubkey::new_from_array(data[0..32].try_into()?),
-            mint_bump: data[32],
-            mint_auth_bump: data[33],
+            mint: read_pubkey(data, 0)?,
+            mint_bump: read_u8(data, 32)?,
+            mint_auth_bump: read_u8(data, 33)?,
         })
     }
 }
@@ -149,11 +180,11 @@ pub struct VaultConfiguration {
 impl VaultConfiguration {
     pub fn load(data: &[u8]) -> Result<Self> {
         Ok(VaultConfiguration {
-            max_cap: u64::from_le_bytes(data[0..8].try_into()?),
-            start_at_ts: u64::from_le_bytes(data[8..16].try_into()?),
-            locked_profit_degradation_duration: u64::from_le_bytes(data[16..24].try_into()?),
-            withdrawal_waiting_period: u64::from_le_bytes(data[24..32].try_into()?),
-            disabled_operations: u16::from_le_bytes(data[32..34].try_into()?),
+            max_cap: read_u64(data, 0)?,
+            start_at_ts: read_u64(data, 8)?,
+            locked_profit_degradation_duration: read_u64(data, 16)?,
+            withdrawal_waiting_period: read_u64(data, 24)?,
+            disabled_operations: read_u16(data, 32)?,
         })
     }
 }
@@ -173,14 +204,14 @@ pub struct FeeConfiguration {
 impl FeeConfiguration {
     pub fn load(data: &[u8]) -> Result<Self> {
         Ok(FeeConfiguration {
-            manager_performance_fee: u16::from_le_bytes(data[0..2].try_into()?),
-            admin_performance_fee: u16::from_le_bytes(data[2..4].try_into()?),
-            manager_management_fee: u16::from_le_bytes(data[4..6].try_into()?),
-            admin_management_fee: u16::from_le_bytes(data[6..8].try_into()?),
-            redemption_fee: u16::from_le_bytes(data[8..10].try_into()?),
-            issuance_fee: u16::from_le_bytes(data[10..12].try_into()?),
-            protocol_performance_fee: u16::from_le_bytes(data[12..14].try_into()?),
-            protocol_management_fee: u16::from_le_bytes(data[14..16].try_into()?),
+            manager_performance_fee: read_u16(data, 0)?,
+            admin_performance_fee: read_u16(data, 2)?,
+            manager_management_fee: read_u16(data, 4)?,
+            admin_management_fee: read_u16(data, 6)?,
+            redemption_fee: read_u16(data, 8)?,
+            issuance_fee: read_u16(data, 10)?,
+            protocol_performance_fee: read_u16(data, 12)?,
+            protocol_management_fee: read_u16(data, 14)?,
         })
     }
 }
@@ -194,8 +225,8 @@ pub struct FeeUpdate {
 impl FeeUpdate {
     pub fn load(data: &[u8]) -> Result<Self> {
         Ok(FeeUpdate {
-            last_performance_fee_update_ts: u64::from_le_bytes(data[0..8].try_into()?),
-            last_management_fee_update_ts: u64::from_le_bytes(data[8..16].try_into()?),
+            last_performance_fee_update_ts: read_u64(data, 0)?,
+            last_management_fee_update_ts: read_u64(data, 8)?,
         })
     }
 }
@@ -210,9 +241,9 @@ pub struct FeeState {
 impl FeeState {
     pub fn load(data: &[u8]) -> Result<Self> {
         Ok(FeeState {
-            accumulated_lp_manager_fees: u64::from_le_bytes(data[0..8].try_into()?),
-            accumulated_lp_admin_fees: u64::from_le_bytes(data[8..16].try_into()?),
-            accumulated_lp_protocol_fees: u64::from_le_bytes(data[16..24].try_into()?),
+            accumulated_lp_manager_fees: read_u64(data, 0)?,
+            accumulated_lp_admin_fees: read_u64(data, 8)?,
+            accumulated_lp_protocol_fees: read_u64(data, 16)?,
         })
     }
 }
@@ -226,8 +257,8 @@ pub struct HighWaterMark {
 impl HighWaterMark {
     pub fn load(data: &[u8]) -> Result<Self> {
         Ok(HighWaterMark {
-            highest_asset_per_lp_decimal_bits: u128::from_le_bytes(data[0..16].try_into()?),
-            last_updated_ts: u64::from_le_bytes(data[16..24].try_into()?),
+            highest_asset_per_lp_decimal_bits: read_u128(data, 0)?,
+            last_updated_ts: read_u64(data, 16)?,
         })
     }
 }
@@ -241,8 +272,8 @@ pub struct LockedProfitState {
 impl LockedProfitState {
     pub fn load(data: &[u8]) -> Result<Self> {
         Ok(LockedProfitState {
-            last_updated_locked_profit: u64::from_le_bytes(data[0..8].try_into()?),
-            last_report: u64::from_le_bytes(data[8..16].try_into()?),
+            last_updated_locked_profit: read_u64(data, 0)?,
+            last_report: read_u64(data, 8)?,
         })
     }
 
@@ -264,5 +295,20 @@ impl LockedProfitState {
             .ok_or(VoltrAmmError::MathOverflow)?;
 
         Ok(u64::try_from(locked_profit)?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vault_load_rejects_short_account_data() {
+        assert!(Vault::load(&[]).is_err());
+    }
+
+    #[test]
+    fn vault_asset_load_rejects_short_data() {
+        assert!(VaultAsset::load(&[0u8; 8]).is_err());
     }
 }

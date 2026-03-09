@@ -5,9 +5,7 @@ use jupiter_amm_interface::{
     SwapAndAccountMetas, SwapParams,
 };
 use solana_sdk::{
-    instruction::AccountMeta,
-    program_pack::Pack,
-    pubkey::Pubkey,
+    instruction::AccountMeta, program_pack::Pack, pubkey::Pubkey,
     system_program::ID as SystemProgramId,
 };
 use spl_token_2022::{extension::StateWithExtensionsOwned, state::Mint as Mint22};

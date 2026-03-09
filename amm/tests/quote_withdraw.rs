@@ -1,5 +1,5 @@
-use amm::{state::Vault, VoltrAmm};
 use jupiter_amm_interface::{Amm, QuoteParams, SwapMode};
+use voltr_amm_sdk::{state::Vault, VoltrAmm};
 
 mod utils;
 use utils::*;

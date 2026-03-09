@@ -109,28 +109,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
-name = "amm"
-version = "0.1.0"
-dependencies = [
- "ahash 0.8.12",
- "anyhow",
- "base64 0.22.1",
- "bincode",
- "fixed",
- "jupiter-amm-interface",
- "rust_decimal",
- "serde",
- "serde_json",
- "solana-program-test",
- "solana-sdk",
- "spl-associated-token-account 5.0.1",
- "spl-token",
- "spl-token-2022 5.0.2",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6174,6 +6152,28 @@ name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
+
+[[package]]
+name = "voltr-amm-sdk"
+version = "0.1.0"
+dependencies = [
+ "ahash 0.8.12",
+ "anyhow",
+ "base64 0.22.1",
+ "bincode",
+ "fixed",
+ "jupiter-amm-interface",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-associated-token-account 5.0.1",
+ "spl-token",
+ "spl-token-2022 5.0.2",
+ "thiserror",
+ "tokio",
+]
 
 [[package]]
 name = "walkdir"

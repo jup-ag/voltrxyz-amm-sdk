@@ -1,4 +1,3 @@
-use amm::{constants::VOLTR_VAULT_PROGRAM, state::Vault, VoltrAmm, VoltrSwap};
 use jupiter_amm_interface::{Amm, QuoteParams, SwapMode};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
@@ -12,6 +11,7 @@ use spl_associated_token_account::{
     get_associated_token_address_with_program_id, instruction::create_associated_token_account,
 };
 use spl_token::{id as token_program_id, state::Account as TokenAccount};
+use voltr_amm_sdk::{constants::VOLTR_VAULT_PROGRAM, state::Vault, VoltrAmm, VoltrSwap};
 
 mod utils;
 use utils::*;

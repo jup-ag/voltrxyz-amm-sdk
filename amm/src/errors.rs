@@ -19,4 +19,7 @@ pub enum VoltrAmmError {
 
     #[error("Insufficient Idle Balance")]
     InsufficientIdleBalance = 6,
+
+    #[error("Invalid Account Data")]
+    InvalidAccountData = 7,
 }

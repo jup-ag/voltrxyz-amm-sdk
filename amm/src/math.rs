@@ -3,13 +3,23 @@ use anyhow::Result;
 use crate::constants::{MAX_FEE_BPS, ONE_YEAR_U64};
 use crate::errors::VoltrAmmError;
 
+fn checked_pow10(decimals: u8) -> Result<u128> {
+    let mut value = 1u128;
+    for _ in 0..decimals {
+        value = value.checked_mul(10).ok_or(VoltrAmmError::MathOverflow)?;
+    }
+    Ok(value)
+}
+
 /// Calculate LP tokens to mint on the **initial** deposit (when LP supply is 0).
 ///
 /// Normalizes the asset `amount` from `from_decimals` to `to_decimals` (LP always 9).
 pub fn calc_init_lp_to_mint(amount: u64, from_decimals: u8, to_decimals: u8) -> Result<u64> {
+    let from_scale = checked_pow10(from_decimals)?;
+    let to_scale = checked_pow10(to_decimals)?;
     let result = (amount as u128)
-        .checked_mul(10u128.pow(to_decimals as u32))
-        .and_then(|v| v.checked_div(10u128.pow(from_decimals as u32)))
+        .checked_mul(to_scale)
+        .and_then(|v| v.checked_div(from_scale))
         .ok_or(VoltrAmmError::MathOverflow)?;
     Ok(u64::try_from(result)?)
 }
@@ -148,3 +158,13 @@ pub fn calc_fee_lp_to_mint(
     Ok(u64::try_from(lp_to_mint)?)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn calc_init_lp_to_mint_handles_large_decimals_without_panicking() {
+        let result = calc_init_lp_to_mint(1, 0, u8::MAX);
+        assert!(result.is_err());
+    }
+}
