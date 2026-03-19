@@ -1,9 +1,7 @@
-use anyhow::Result;
-
 use crate::constants::{MAX_FEE_BPS, ONE_YEAR_U64};
 use crate::errors::VoltrAmmError;
 
-fn checked_pow10(decimals: u8) -> Result<u128> {
+fn checked_pow10(decimals: u8) -> Result<u128, VoltrAmmError> {
     let mut value = 1u128;
     for _ in 0..decimals {
         value = value.checked_mul(10).ok_or(VoltrAmmError::MathOverflow)?;
@@ -14,14 +12,18 @@ fn checked_pow10(decimals: u8) -> Result<u128> {
 /// Calculate LP tokens to mint on the **initial** deposit (when LP supply is 0).
 ///
 /// Normalizes the asset `amount` from `from_decimals` to `to_decimals` (LP always 9).
-pub fn calc_init_lp_to_mint(amount: u64, from_decimals: u8, to_decimals: u8) -> Result<u64> {
+pub fn calc_init_lp_to_mint(
+    amount: u64,
+    from_decimals: u8,
+    to_decimals: u8,
+) -> Result<u64, VoltrAmmError> {
     let from_scale = checked_pow10(from_decimals)?;
     let to_scale = checked_pow10(to_decimals)?;
     let result = (amount as u128)
         .checked_mul(to_scale)
         .and_then(|v| v.checked_div(from_scale))
         .ok_or(VoltrAmmError::MathOverflow)?;
-    Ok(u64::try_from(result)?)
+    Ok(u64::try_from(result).map_err(|_| VoltrAmmError::MathOverflow)?)
 }
 
 /// Calculate LP tokens to mint on a subsequent deposit.
@@ -35,7 +37,7 @@ pub fn calc_deposit_lp_to_mint(
     total_lp_supply_pre_deposit: u64,
     total_asset_pre_deposit: u64,
     issuance_fee_bps: u16,
-) -> Result<u64> {
+) -> Result<u64, VoltrAmmError> {
     let total_asset_post_deposit = total_asset_pre_deposit
         .checked_add(amount)
         .ok_or(VoltrAmmError::MathOverflow)? as u128;
@@ -62,7 +64,7 @@ pub fn calc_deposit_lp_to_mint(
         .checked_div(denominator)
         .ok_or(VoltrAmmError::DivisionByZero)?;
 
-    Ok(u64::try_from(lp_to_mint)?)
+    Ok(u64::try_from(lp_to_mint).map_err(|_| VoltrAmmError::MathOverflow)?)
 }
 
 /// Calculate the management fee in asset terms for a given time period.
@@ -70,7 +72,7 @@ pub fn calc_management_fee_amount_in_asset(
     time_elapsed: u64,
     total_asset_value: u64,
     management_fee_bps: u16,
-) -> Result<u64> {
+) -> Result<u64, VoltrAmmError> {
     let divisor = (MAX_FEE_BPS as u64)
         .checked_mul(ONE_YEAR_U64)
         .ok_or(VoltrAmmError::MathOverflow)? as u128;
@@ -84,14 +86,14 @@ pub fn calc_management_fee_amount_in_asset(
         })
         .ok_or(VoltrAmmError::MathOverflow)?;
 
-    Ok(u64::try_from(fee_amount)?)
+    Ok(u64::try_from(fee_amount).map_err(|_| VoltrAmmError::MathOverflow)?)
 }
 
 /// Fractional bits in the on-chain U80F48 fixed-point type.
 const FRAC_BITS: u32 = 48;
 
 /// Compute `(a * b) / c` using schoolbook division to avoid u128 overflow.
-fn mul_div(a: u128, b: u64, c: u64) -> Result<u128> {
+fn mul_div(a: u128, b: u64, c: u64) -> Result<u128, VoltrAmmError> {
     if c == 0 {
         return Err(VoltrAmmError::DivisionByZero.into());
     }
@@ -114,7 +116,7 @@ pub fn calc_withdraw_asset_to_redeem(
     total_lp_supply_pre_withdraw: u64,
     total_unlocked_asset: u64,
     redemption_fee_bps: u16,
-) -> Result<u64> {
+) -> Result<u64, VoltrAmmError> {
     if total_lp_supply_pre_withdraw == 0 {
         return Err(VoltrAmmError::DivisionByZero.into());
     }
@@ -127,7 +129,7 @@ pub fn calc_withdraw_asset_to_redeem(
         .ok_or(VoltrAmmError::MathOverflow)?;
     let bits = mul_div(bits, fee_adjusted as u64, MAX_FEE_BPS as u64)?;
 
-    Ok(u64::try_from(bits >> FRAC_BITS)?)
+    Ok(u64::try_from(bits >> FRAC_BITS).map_err(|_| VoltrAmmError::MathOverflow)?)
 }
 
 /// Calculate LP tokens to mint for accumulated fees.
@@ -137,7 +139,7 @@ pub fn calc_fee_lp_to_mint(
     fee_amount: u64,
     total_lp_supply_pre_fee: u64,
     total_asset_post_fee: u64,
-) -> Result<u64> {
+) -> Result<u64, VoltrAmmError> {
     let denominator = (total_asset_post_fee as u128)
         .checked_sub(fee_amount as u128)
         .ok_or(VoltrAmmError::MathOverflow)?;
@@ -155,7 +157,7 @@ pub fn calc_fee_lp_to_mint(
         .and_then(|v| v.checked_div(denominator))
         .ok_or(VoltrAmmError::DivisionByZero)?;
 
-    Ok(u64::try_from(lp_to_mint)?)
+    Ok(u64::try_from(lp_to_mint).map_err(|_| VoltrAmmError::MathOverflow)?)
 }
 
 #[cfg(test)]

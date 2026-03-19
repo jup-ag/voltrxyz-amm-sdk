@@ -1,41 +1,40 @@
-use anyhow::Result;
 use solana_pubkey::Pubkey;
 
 use crate::errors::VoltrAmmError;
 
 const DISCRIMINATOR_SIZE: usize = 8;
 
-fn read_slice(data: &[u8], start: usize, end: usize) -> Result<&[u8]> {
+fn read_slice(data: &[u8], start: usize, end: usize) -> Result<&[u8], VoltrAmmError> {
     data.get(start..end)
         .ok_or(VoltrAmmError::InvalidAccountData.into())
 }
 
-fn read_array<const N: usize>(data: &[u8], offset: usize) -> Result<[u8; N]> {
+fn read_array<const N: usize>(data: &[u8], offset: usize) -> Result<[u8; N], VoltrAmmError> {
     let end = offset.checked_add(N).ok_or(VoltrAmmError::MathOverflow)?;
     read_slice(data, offset, end)?
         .try_into()
-        .map_err(Into::into)
+        .map_err(|_| VoltrAmmError::InvalidAccountData)
 }
 
-fn read_pubkey(data: &[u8], offset: usize) -> Result<Pubkey> {
+fn read_pubkey(data: &[u8], offset: usize) -> Result<Pubkey, VoltrAmmError> {
     Ok(Pubkey::new_from_array(read_array::<32>(data, offset)?))
 }
 
-fn read_u8(data: &[u8], offset: usize) -> Result<u8> {
+fn read_u8(data: &[u8], offset: usize) -> Result<u8, VoltrAmmError> {
     data.get(offset)
         .copied()
         .ok_or(VoltrAmmError::InvalidAccountData.into())
 }
 
-fn read_u16(data: &[u8], offset: usize) -> Result<u16> {
+fn read_u16(data: &[u8], offset: usize) -> Result<u16, VoltrAmmError> {
     Ok(u16::from_le_bytes(read_array::<2>(data, offset)?))
 }
 
-fn read_u64(data: &[u8], offset: usize) -> Result<u64> {
+fn read_u64(data: &[u8], offset: usize) -> Result<u64, VoltrAmmError> {
     Ok(u64::from_le_bytes(read_array::<8>(data, offset)?))
 }
 
-fn read_u128(data: &[u8], offset: usize) -> Result<u128> {
+fn read_u128(data: &[u8], offset: usize) -> Result<u128, VoltrAmmError> {
     Ok(u128::from_le_bytes(read_array::<16>(data, offset)?))
 }
 
@@ -54,7 +53,7 @@ pub struct Vault {
 }
 
 impl Vault {
-    pub fn load(account_data: &[u8]) -> Result<Self> {
+    pub fn load(account_data: &[u8]) -> Result<Self, VoltrAmmError> {
         let d = DISCRIMINATOR_SIZE;
 
         let asset = VaultAsset::load(read_slice(account_data, d + 96, d + 264)?)?;
@@ -89,7 +88,7 @@ impl Vault {
         self.asset.total_value
     }
 
-    pub fn get_total_accumulated_lp_fees(&self) -> Result<u64> {
+    pub fn get_total_accumulated_lp_fees(&self) -> Result<u64, VoltrAmmError> {
         self.fee_state
             .accumulated_lp_admin_fees
             .checked_add(self.fee_state.accumulated_lp_manager_fees)
@@ -97,14 +96,17 @@ impl Vault {
             .ok_or(VoltrAmmError::MathOverflow.into())
     }
 
-    pub fn get_total_lp_supply_incl_fees(&self, total_lp_supply_excl_fees: u64) -> Result<u64> {
+    pub fn get_total_lp_supply_incl_fees(
+        &self,
+        total_lp_supply_excl_fees: u64,
+    ) -> Result<u64, VoltrAmmError> {
         self.get_total_accumulated_lp_fees()?
             .checked_add(total_lp_supply_excl_fees)
             .and_then(|s| s.checked_add(self.dead_weight))
             .ok_or(VoltrAmmError::MathOverflow.into())
     }
 
-    pub fn get_total_fee_configuration_management_fee(&self) -> Result<u16> {
+    pub fn get_total_fee_configuration_management_fee(&self) -> Result<u16, VoltrAmmError> {
         self.fee_configuration
             .admin_management_fee
             .checked_add(self.fee_configuration.manager_management_fee)
@@ -112,7 +114,7 @@ impl Vault {
             .ok_or(VoltrAmmError::MathOverflow.into())
     }
 
-    pub fn get_unlocked_asset_value(&self, current_ts: u64) -> Result<u64> {
+    pub fn get_unlocked_asset_value(&self, current_ts: u64) -> Result<u64, VoltrAmmError> {
         let locked_profit = self.locked_profit_state.calculate_locked_profit(
             self.vault_configuration.locked_profit_degradation_duration,
             current_ts,
@@ -123,7 +125,7 @@ impl Vault {
             .ok_or(VoltrAmmError::MathOverflow.into())
     }
 
-    pub fn get_total_fee_configuration_performance_fee(&self) -> Result<u16> {
+    pub fn get_total_fee_configuration_performance_fee(&self) -> Result<u16, VoltrAmmError> {
         self.fee_configuration
             .admin_performance_fee
             .checked_add(self.fee_configuration.manager_performance_fee)
@@ -141,7 +143,7 @@ pub struct VaultAsset {
 }
 
 impl VaultAsset {
-    pub fn load(data: &[u8]) -> Result<Self> {
+    pub fn load(data: &[u8]) -> Result<Self, VoltrAmmError> {
         Ok(VaultAsset {
             mint: read_pubkey(data, 0)?,
             idle_ata: read_pubkey(data, 32)?,
@@ -159,7 +161,7 @@ pub struct VaultLp {
 }
 
 impl VaultLp {
-    pub fn load(data: &[u8]) -> Result<Self> {
+    pub fn load(data: &[u8]) -> Result<Self, VoltrAmmError> {
         Ok(VaultLp {
             mint: read_pubkey(data, 0)?,
             mint_bump: read_u8(data, 32)?,
@@ -178,7 +180,7 @@ pub struct VaultConfiguration {
 }
 
 impl VaultConfiguration {
-    pub fn load(data: &[u8]) -> Result<Self> {
+    pub fn load(data: &[u8]) -> Result<Self, VoltrAmmError> {
         Ok(VaultConfiguration {
             max_cap: read_u64(data, 0)?,
             start_at_ts: read_u64(data, 8)?,
@@ -202,7 +204,7 @@ pub struct FeeConfiguration {
 }
 
 impl FeeConfiguration {
-    pub fn load(data: &[u8]) -> Result<Self> {
+    pub fn load(data: &[u8]) -> Result<Self, VoltrAmmError> {
         Ok(FeeConfiguration {
             manager_performance_fee: read_u16(data, 0)?,
             admin_performance_fee: read_u16(data, 2)?,
@@ -223,7 +225,7 @@ pub struct FeeUpdate {
 }
 
 impl FeeUpdate {
-    pub fn load(data: &[u8]) -> Result<Self> {
+    pub fn load(data: &[u8]) -> Result<Self, VoltrAmmError> {
         Ok(FeeUpdate {
             last_performance_fee_update_ts: read_u64(data, 0)?,
             last_management_fee_update_ts: read_u64(data, 8)?,
@@ -239,7 +241,7 @@ pub struct FeeState {
 }
 
 impl FeeState {
-    pub fn load(data: &[u8]) -> Result<Self> {
+    pub fn load(data: &[u8]) -> Result<Self, VoltrAmmError> {
         Ok(FeeState {
             accumulated_lp_manager_fees: read_u64(data, 0)?,
             accumulated_lp_admin_fees: read_u64(data, 8)?,
@@ -255,7 +257,7 @@ pub struct HighWaterMark {
 }
 
 impl HighWaterMark {
-    pub fn load(data: &[u8]) -> Result<Self> {
+    pub fn load(data: &[u8]) -> Result<Self, VoltrAmmError> {
         Ok(HighWaterMark {
             highest_asset_per_lp_decimal_bits: read_u128(data, 0)?,
             last_updated_ts: read_u64(data, 16)?,
@@ -270,7 +272,7 @@ pub struct LockedProfitState {
 }
 
 impl LockedProfitState {
-    pub fn load(data: &[u8]) -> Result<Self> {
+    pub fn load(data: &[u8]) -> Result<Self, VoltrAmmError> {
         Ok(LockedProfitState {
             last_updated_locked_profit: read_u64(data, 0)?,
             last_report: read_u64(data, 8)?,
@@ -281,7 +283,7 @@ impl LockedProfitState {
         &self,
         locked_profit_degradation_duration: u64,
         current_time: u64,
-    ) -> Result<u64> {
+    ) -> Result<u64, VoltrAmmError> {
         let duration = current_time.saturating_sub(self.last_report) as u128;
         let degradation_duration = locked_profit_degradation_duration as u128;
 
@@ -294,7 +296,7 @@ impl LockedProfitState {
             .and_then(|v| v.checked_div(degradation_duration))
             .ok_or(VoltrAmmError::MathOverflow)?;
 
-        Ok(u64::try_from(locked_profit)?)
+        Ok(u64::try_from(locked_profit).map_err(|_| VoltrAmmError::MathOverflow)?)
     }
 }
 
