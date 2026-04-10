@@ -1,16 +1,16 @@
 // use jupiter_amm_interface::{Amm, QuoteParams, SwapMode};
 // use solana_program_test::ProgramTest;
-// use solana_sdk::{
-//     instruction::{AccountMeta, Instruction},
-//     program_pack::Pack,
-//     pubkey::Pubkey,
-//     signature::{Keypair, Signer},
-//     transaction::Transaction,
+// use solana_instruction::{AccountMeta, Instruction};
+// use solana_keypair::Keypair;
+// use solana_program_pack::Pack;
+// use solana_pubkey::Pubkey;
+// use solana_signer::Signer;
+// use solana_transaction::Transaction;
+// use spl_associated_token_account_interface::{
+//     address::get_associated_token_address_with_program_id,
+//     instruction::create_associated_token_account,
 // };
-// use spl_associated_token_account::{
-//     get_associated_token_address_with_program_id, instruction::create_associated_token_account,
-// };
-// use spl_token::{id as token_program_id, state::Account as TokenAccount};
+// use spl_token_interface::{id as token_program_id, state::Account as TokenAccount};
 // use voltr_amm_sdk::{constants::VOLTR_VAULT_PROGRAM, state::Vault, VoltrAmm, VoltrSwap};
 
 // mod utils;
@@ -92,7 +92,7 @@
 //                 &lp_mint,
 //                 &token_program_id(),
 //             ),
-//             spl_token::instruction::mint_to(
+//             spl_token_interface::instruction::mint_to(
 //                 &token_program_id(),
 //                 &asset_mint,
 //                 &user_asset_ata,
@@ -273,7 +273,7 @@
 
 // fn get_ix_data(ix_name: &str, amount: u64) -> Vec<u8> {
 //     let preimage = format!("global:{}", ix_name);
-//     let hash = solana_sdk::hash::hash(preimage.as_bytes());
+//     let hash = solana_hash::hash(preimage.as_bytes());
 //     let mut buf = Vec::new();
 //     buf.extend_from_slice(&hash.to_bytes()[..8]);
 //     buf.extend_from_slice(&amount.to_le_bytes());

@@ -23,7 +23,7 @@ pub fn calc_init_lp_to_mint(
         .checked_mul(to_scale)
         .and_then(|v| v.checked_div(from_scale))
         .ok_or(VoltrAmmError::MathOverflow)?;
-    Ok(u64::try_from(result).map_err(|_| VoltrAmmError::MathOverflow)?)
+    u64::try_from(result).map_err(|_| VoltrAmmError::MathOverflow)
 }
 
 /// Calculate LP tokens to mint on a subsequent deposit.
@@ -57,14 +57,14 @@ pub fn calc_deposit_lp_to_mint(
         .ok_or(VoltrAmmError::MathOverflow)?;
 
     if denominator == 0 {
-        return Err(VoltrAmmError::DivisionByZero.into());
+        return Err(VoltrAmmError::DivisionByZero);
     }
 
     let lp_to_mint = numerator
         .checked_div(denominator)
         .ok_or(VoltrAmmError::DivisionByZero)?;
 
-    Ok(u64::try_from(lp_to_mint).map_err(|_| VoltrAmmError::MathOverflow)?)
+    u64::try_from(lp_to_mint).map_err(|_| VoltrAmmError::MathOverflow)
 }
 
 /// Calculate the management fee in asset terms for a given time period.
@@ -86,7 +86,7 @@ pub fn calc_management_fee_amount_in_asset(
         })
         .ok_or(VoltrAmmError::MathOverflow)?;
 
-    Ok(u64::try_from(fee_amount).map_err(|_| VoltrAmmError::MathOverflow)?)
+    u64::try_from(fee_amount).map_err(|_| VoltrAmmError::MathOverflow)
 }
 
 /// Fractional bits in the on-chain U80F48 fixed-point type.
@@ -95,7 +95,7 @@ const FRAC_BITS: u32 = 48;
 /// Compute `(a * b) / c` using schoolbook division to avoid u128 overflow.
 fn mul_div(a: u128, b: u64, c: u64) -> Result<u128, VoltrAmmError> {
     if c == 0 {
-        return Err(VoltrAmmError::DivisionByZero.into());
+        return Err(VoltrAmmError::DivisionByZero);
     }
     let c128 = c as u128;
     let b128 = b as u128;
@@ -103,7 +103,7 @@ fn mul_div(a: u128, b: u64, c: u64) -> Result<u128, VoltrAmmError> {
     let r = a % c128;
     q.checked_mul(b128)
         .and_then(|v| v.checked_add((r * b128) / c128))
-        .ok_or_else(|| VoltrAmmError::MathOverflow.into())
+        .ok_or(VoltrAmmError::MathOverflow)
 }
 
 /// Calculate asset tokens to redeem for a given LP burn amount.
@@ -118,7 +118,7 @@ pub fn calc_withdraw_asset_to_redeem(
     redemption_fee_bps: u16,
 ) -> Result<u64, VoltrAmmError> {
     if total_lp_supply_pre_withdraw == 0 {
-        return Err(VoltrAmmError::DivisionByZero.into());
+        return Err(VoltrAmmError::DivisionByZero);
     }
 
     let bits = (amount_lp_to_burn as u128) << FRAC_BITS;
@@ -129,7 +129,7 @@ pub fn calc_withdraw_asset_to_redeem(
         .ok_or(VoltrAmmError::MathOverflow)?;
     let bits = mul_div(bits, fee_adjusted as u64, MAX_FEE_BPS as u64)?;
 
-    Ok(u64::try_from(bits >> FRAC_BITS).map_err(|_| VoltrAmmError::MathOverflow)?)
+    u64::try_from(bits >> FRAC_BITS).map_err(|_| VoltrAmmError::MathOverflow)
 }
 
 /// Calculate LP tokens to mint for accumulated fees.
@@ -145,7 +145,7 @@ pub fn calc_fee_lp_to_mint(
         .ok_or(VoltrAmmError::MathOverflow)?;
 
     if denominator == 0 {
-        return Err(VoltrAmmError::DivisionByZero.into());
+        return Err(VoltrAmmError::DivisionByZero);
     }
 
     let numerator = (fee_amount as u128)
@@ -157,7 +157,7 @@ pub fn calc_fee_lp_to_mint(
         .and_then(|v| v.checked_div(denominator))
         .ok_or(VoltrAmmError::DivisionByZero)?;
 
-    Ok(u64::try_from(lp_to_mint).map_err(|_| VoltrAmmError::MathOverflow)?)
+    u64::try_from(lp_to_mint).map_err(|_| VoltrAmmError::MathOverflow)
 }
 
 #[cfg(test)]

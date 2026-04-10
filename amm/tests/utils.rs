@@ -5,8 +5,8 @@
 
 // use jupiter_amm_interface::AccountMap;
 // use serde_json::Value;
-// use solana_sdk::account::Account;
-// use solana_sdk::pubkey::Pubkey;
+// use solana_account::Account;
+// use solana_pubkey::Pubkey;
 // use std::fs::File;
 // use std::io::Read;
 // use std::path::Path;

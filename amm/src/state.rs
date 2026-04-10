@@ -6,7 +6,7 @@ const DISCRIMINATOR_SIZE: usize = 8;
 
 fn read_slice(data: &[u8], start: usize, end: usize) -> Result<&[u8], VoltrAmmError> {
     data.get(start..end)
-        .ok_or(VoltrAmmError::InvalidAccountData.into())
+        .ok_or(VoltrAmmError::InvalidAccountData)
 }
 
 fn read_array<const N: usize>(data: &[u8], offset: usize) -> Result<[u8; N], VoltrAmmError> {
@@ -23,7 +23,7 @@ fn read_pubkey(data: &[u8], offset: usize) -> Result<Pubkey, VoltrAmmError> {
 fn read_u8(data: &[u8], offset: usize) -> Result<u8, VoltrAmmError> {
     data.get(offset)
         .copied()
-        .ok_or(VoltrAmmError::InvalidAccountData.into())
+        .ok_or(VoltrAmmError::InvalidAccountData)
 }
 
 fn read_u16(data: &[u8], offset: usize) -> Result<u16, VoltrAmmError> {
@@ -93,7 +93,7 @@ impl Vault {
             .accumulated_lp_admin_fees
             .checked_add(self.fee_state.accumulated_lp_manager_fees)
             .and_then(|s| s.checked_add(self.fee_state.accumulated_lp_protocol_fees))
-            .ok_or(VoltrAmmError::MathOverflow.into())
+            .ok_or(VoltrAmmError::MathOverflow)
     }
 
     pub fn get_total_lp_supply_incl_fees(
@@ -103,7 +103,7 @@ impl Vault {
         self.get_total_accumulated_lp_fees()?
             .checked_add(total_lp_supply_excl_fees)
             .and_then(|s| s.checked_add(self.dead_weight))
-            .ok_or(VoltrAmmError::MathOverflow.into())
+            .ok_or(VoltrAmmError::MathOverflow)
     }
 
     pub fn get_total_fee_configuration_management_fee(&self) -> Result<u16, VoltrAmmError> {
@@ -111,7 +111,7 @@ impl Vault {
             .admin_management_fee
             .checked_add(self.fee_configuration.manager_management_fee)
             .and_then(|s| s.checked_add(self.fee_configuration.protocol_management_fee))
-            .ok_or(VoltrAmmError::MathOverflow.into())
+            .ok_or(VoltrAmmError::MathOverflow)
     }
 
     pub fn get_unlocked_asset_value(&self, current_ts: u64) -> Result<u64, VoltrAmmError> {
@@ -122,7 +122,7 @@ impl Vault {
         self.asset
             .total_value
             .checked_sub(locked_profit)
-            .ok_or(VoltrAmmError::MathOverflow.into())
+            .ok_or(VoltrAmmError::MathOverflow)
     }
 
     pub fn get_total_fee_configuration_performance_fee(&self) -> Result<u16, VoltrAmmError> {
@@ -130,7 +130,7 @@ impl Vault {
             .admin_performance_fee
             .checked_add(self.fee_configuration.manager_performance_fee)
             .and_then(|s| s.checked_add(self.fee_configuration.protocol_performance_fee))
-            .ok_or(VoltrAmmError::MathOverflow.into())
+            .ok_or(VoltrAmmError::MathOverflow)
     }
 }
 
@@ -296,7 +296,7 @@ impl LockedProfitState {
             .and_then(|v| v.checked_div(degradation_duration))
             .ok_or(VoltrAmmError::MathOverflow)?;
 
-        Ok(u64::try_from(locked_profit).map_err(|_| VoltrAmmError::MathOverflow)?)
+        u64::try_from(locked_profit).map_err(|_| VoltrAmmError::MathOverflow)
     }
 }
 
